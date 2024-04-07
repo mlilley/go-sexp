@@ -1,4 +1,4 @@
-((thing data "quoted data" 123456 123.456)
+((thing data "quoted data" 123 123.456)
     (anotherthing (nestedthing @#$% 
         "(tricky quoted" "more tricky quoted)"))
 )

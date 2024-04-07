@@ -7,35 +7,40 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"unicode"
 )
 
-type TokenKind int
-
-const (
-	TokenKindQuoteOpen TokenKind = iota
-	TokenKindQuoteClose
-	TokenKindParam
-)
-
-type Token struct {
-	Kind  TokenKind
-	Value string
-}
-
-// An SParam can be of type string, int, float64, SExp
-type SParam interface{}
-
-// An SExp has zero or more SParams
 type SExp struct {
 	params []SParam
 }
 
+type SParam interface{} // (string, int, float64, or SExp)
+
+// TODO: replace with stringbuilder
 func (sexp *SExp) String() string {
-	return "TODO"
+	return stringSexp(sexp, 0)
 }
 
-const MAX_PARAM_BYTES int = 1024
+func stringSexp(sexp *SExp, level int) string {
+	indent := strings.Repeat("  ", level)
+	str := indent + "(\n"
+	for _, param := range sexp.params {
+		switch t := param.(type) {
+		case string:
+			str += indent + fmt.Sprintf("  %s\n", t)
+		case int:
+			str += indent + fmt.Sprintf("  %d\n", t)
+		case float64:
+			str += indent + fmt.Sprintf("  %f\n", t)
+		case *SExp:
+			str += stringSexp(t, level+1)
+		}
+	}
+	str += indent + ")\n"
+	return str
+}
 
 func main() {
 	if len(os.Args) != 2 {
@@ -49,74 +54,82 @@ func main() {
 	}
 	defer f.Close()
 
-	sexp, err := parseSexp(bufio.NewReader(f))
+	_, err = parse(bufio.NewReader(f), false)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Print(sexp.String())
+	// fmt.Println("\n" + sexp.String())
 }
 
-func parseSexp(reader *bufio.Reader) (*SExp, error) {
-	inSexp := false
+func parse(reader *bufio.Reader, parseNumerics bool) (*SExp, error) {
+	token, err := nextToken(reader, parseNumerics)
+	if err != nil {
+		// an EOF terminates an empty input file
+		if err == io.EOF {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	switch t := token.(type) {
+	case rune:
+		if t == '(' {
+			sexp, err := parseSexp(reader, parseNumerics)
+			if err != nil {
+				return nil, err
+			}
+			return sexp, nil
+		}
+	}
+
+	return nil, errors.New("unexpected token")
+}
+
+func parseSexp(reader *bufio.Reader, parseNumerics bool) (*SExp, error) {
 	sexp := SExp{}
 
 	for {
-		token, err := nextToken(reader)
+		token, err := nextToken(reader, parseNumerics)
 		if err != nil {
 			if err == io.EOF {
 				// an EOF illegally terminates an sexp
-				if inSexp {
-					return nil, errors.New("unexpected EOF reading sexp")
-				}
+				return nil, errors.New("unexpected EOF reading sexp")
 			}
 			return nil, err
 		}
 
-		if inSexp {
-			switch t := token.(type) {
-			case rune:
-				// proper termination of sexp
-				if t == ')' {
-					return &sexp, nil
-				}
-				// param is a sexp, recurse into it
-				if t == '(' {
-					sexpParam, err := parseSexp(reader)
-					if err != nil {
-						if err == io.EOF {
-							return nil, errors.New("unexpected EOF reading sexp")
-						}
-						return nil, err
-					}
-					sexp.params = append(sexp.params, sexpParam)
-					continue
-				}
-				// unexpected rune
-				return nil, errors.New("unexpected token (rune)")
-
-			default:
-				// token is string, int, or float64
-				sexp.params = append(sexp.params, token)
-				continue
-			}
-		}
-
 		switch t := token.(type) {
 		case rune:
-			// only valid token outside of a sexp
+			// proper termination of sexp
+			if t == ')' {
+				return &sexp, nil
+			}
+			// param is a sexp, recurse into it
 			if t == '(' {
-				inSexp = true
+				sexpParam, err := parseSexp(reader, parseNumerics)
+				if err != nil {
+					if err == io.EOF {
+						return nil, errors.New("unexpected EOF reading sexp")
+					}
+					return nil, err
+				}
+				sexp.params = append(sexp.params, sexpParam)
 				continue
 			}
-		}
+			// unexpected rune
+			return nil, errors.New("unexpected token (rune)")
 
-		return nil, fmt.Errorf("unexpected token (%q:%T) reading sexp", token, token)
+		default:
+			// token is string, int, or float64
+			sexp.params = append(sexp.params, token)
+			continue
+		}
 	}
 }
 
 // returns rune, string, int, or float
-func nextToken(reader *bufio.Reader) (interface{}, error) {
+func nextToken(reader *bufio.Reader, parseNumerics bool) (interface{}, error) {
 	inQuoted := false
 	inUnquoted := false
 	var token string
@@ -160,10 +173,30 @@ func nextToken(reader *bufio.Reader) (interface{}, error) {
 			if r == ')' {
 				// push back the ), end and return the unquoted token
 				err = reader.UnreadRune()
+				if err != nil {
+					return nil, err
+				}
+
+				if parseNumerics {
+					if v, err := strconv.Atoi(token); err == nil {
+						return v, nil
+					}
+					if v, err := strconv.ParseFloat(token, 64); err == nil {
+						return v, nil
+					}
+				}
 				return token, nil
 			}
 			if unicode.IsSpace(r) {
 				// end and return the unquoted token
+				if parseNumerics {
+					if v, err := strconv.Atoi(token); err == nil {
+						return v, nil
+					}
+					if v, err := strconv.ParseFloat(token, 64); err == nil {
+						return v, nil
+					}
+				}
 				return token, nil
 			}
 
