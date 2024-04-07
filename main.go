@@ -12,36 +12,6 @@ import (
 	"unicode"
 )
 
-type SExp struct {
-	params []SParam
-}
-
-type SParam interface{} // (string, int, float64, or SExp)
-
-// TODO: replace with stringbuilder
-func (sexp *SExp) String() string {
-	return stringSexp(sexp, 0)
-}
-
-func stringSexp(sexp *SExp, level int) string {
-	indent := strings.Repeat("  ", level)
-	str := indent + "(\n"
-	for _, param := range sexp.params {
-		switch t := param.(type) {
-		case string:
-			str += indent + fmt.Sprintf("  %s\n", t)
-		case int:
-			str += indent + fmt.Sprintf("  %d\n", t)
-		case float64:
-			str += indent + fmt.Sprintf("  %f\n", t)
-		case *SExp:
-			str += stringSexp(t, level+1)
-		}
-	}
-	str += indent + ")\n"
-	return str
-}
-
 func main() {
 	if len(os.Args) != 2 {
 		log.Fatal("expect filename as argument")
@@ -54,12 +24,50 @@ func main() {
 	}
 	defer f.Close()
 
-	_, err = parse(bufio.NewReader(f), false)
+	sexp, err := parse(bufio.NewReader(f), false)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// fmt.Println("\n" + sexp.String())
+	fmt.Println(sexp.String())
+}
+
+type SExp struct {
+	params []SParam
+}
+
+type SParam interface{} // (string, int, float64, or SExp)
+
+func (sexp *SExp) String() string {
+	var sb strings.Builder
+	stringSexp(sexp, &sb, 0)
+	return sb.String()
+}
+
+func stringSexp(sexp *SExp, acc *strings.Builder, level int) {
+	indent := strings.Repeat("  ", level)
+	acc.WriteString(indent)
+	acc.WriteString("(\n")
+	for _, param := range sexp.params {
+		switch t := param.(type) {
+		case string:
+			acc.WriteString(indent)
+			acc.WriteString(t)
+			acc.WriteString("\n")
+		case int:
+			acc.WriteString(indent)
+			acc.WriteString(strconv.Itoa(t))
+			acc.WriteString("\n")
+		case float64:
+			acc.WriteString(indent)
+			acc.WriteString(strconv.FormatFloat(t, 'f', -1, 64))
+			acc.WriteString("\n")
+		case *SExp:
+			stringSexp(t, acc, level+1)
+		}
+	}
+	acc.WriteString(indent)
+	acc.WriteString(")\n")
 }
 
 func parse(reader *bufio.Reader, parseNumerics bool) (*SExp, error) {
