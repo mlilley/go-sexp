@@ -23,23 +23,31 @@ func (sp *Sexpr) String() string {
 }
 
 func (sp *Sexpr) string_(acc *strings.Builder, level int) {
+	wasSexpr := false
 	indent := strings.Repeat("\t", level)
 	acc.WriteString(indent)
-	acc.WriteString("(\n")
-	acc.WriteString(indent)
-	acc.WriteString("\t")
+	acc.WriteString("(")
 	acc.WriteString(sp.Name)
-	acc.WriteString("\n")
-	for _, param := range sp.Params {
-		if sparam, ok := param.(*Sexpr); ok {
-			sparam.string_(acc, level+1)
-		} else {
-			acc.WriteString(indent)
-			acc.WriteString("\t")
-			acc.WriteString(param.String())
+	if len(sp.Params) == 0 {
+		acc.WriteString(")\n")
+	} else {
+		for _, param := range sp.Params {
+			if sparam, ok := param.(*Sexpr); ok {
+				acc.WriteString("\n")
+				sparam.string_(acc, level+1)
+				wasSexpr = true
+			} else {
+				acc.WriteString(" ")
+				acc.WriteString(param.String())
+				wasSexpr = false
+			}
+		}
+		if wasSexpr {
 			acc.WriteString("\n")
+			acc.WriteString(indent)
+			acc.WriteString(")")
+		} else {
+			acc.WriteString(")")
 		}
 	}
-	acc.WriteString(indent)
-	acc.WriteString(")\n")
 }
