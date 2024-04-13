@@ -33,7 +33,7 @@ func Parse(input *bufio.Reader) (*Sexpr, error) {
 				root = s
 			}
 			if depth > 0 && !hasName {
-				return nil, fmt.Errorf("unxpected open at Line %d, Column %d", token.Line, token.Column)
+				return nil, fmt.Errorf("unexpected open at Line %d, Column %d", token.Line, token.Column)
 			}
 			hasName = false
 			sexpr = s
@@ -52,17 +52,23 @@ func Parse(input *bufio.Reader) (*Sexpr, error) {
 			sexpr = sexpr.Parent
 			depth--
 
-		} else if token.Kind == TokenString || token.Kind == TokenQuotedString {
+		} else if token.Kind == TokenString {
 			if depth == 0 {
 				return nil, fmt.Errorf("unexpected string at Line %d, Column %d: '%s'", token.Line, token.Column, token.Content)
 			}
 			if hasName {
-				sp := &SexprStringParam{
-					Value:  token.Content,
-					Line:   token.Line,
-					Column: token.Column,
-				}
-				sexpr.AddParam(sp)
+				sexpr.AddParam(NewSexprStringParamQuoted(token.Content, false, token.Line, token.Column))
+			} else {
+				sexpr.Name = token.Content
+				hasName = true
+			}
+
+		} else if token.Kind == TokenQuotedString {
+			if depth == 0 {
+				return nil, fmt.Errorf("unexpected string at Line %d, Column %d: '%s'", token.Line, token.Column, token.Content)
+			}
+			if hasName {
+				sexpr.AddParam(NewSexprStringParamQuoted(token.Content[1:len(token.Content)-1], true, token.Line, token.Column))
 			} else {
 				sexpr.Name = token.Content
 				hasName = true
