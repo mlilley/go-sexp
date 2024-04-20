@@ -1,46 +1,74 @@
-package main
+package sexpr
 
 import (
 	"strings"
 )
 
 type Sexpr struct {
-	Name   string
-	Params []SexprParam
-	Line   int
-	Column int
-	Parent *Sexpr
+	parent *Sexpr
+	name   string
+	params []*SexprParam
+
+	line int
+	col  int
 }
 
-func (sp *Sexpr) __sexprParamMemberDummy__() {}
-
-func (sp *Sexpr) AddParam(p SexprParam) {
-	sp.Params = append(sp.Params, p)
+func NewSexpr(name string, params []*SexprParam, parent *Sexpr, line int, col int) *Sexpr {
+	return &Sexpr{
+		parent: parent,
+		name:   name,
+		params: params,
+		line:   line,
+		col:    col,
+	}
 }
 
-func (sp *Sexpr) String() string {
-	var b strings.Builder
-	sp.string_(&b, 0)
-	return b.String()
+func (s *Sexpr) Name() string {
+	return s.name
 }
 
-func (sp *Sexpr) string_(acc *strings.Builder, level int) {
+func (s *Sexpr) Params() []*SexprParam {
+	return s.params
+}
+
+func (s *Sexpr) Parent() *Sexpr {
+	return s.parent
+}
+
+func (s *Sexpr) Line() int {
+	return s.line
+}
+
+func (s *Sexpr) Col() int {
+	return s.col
+}
+
+func (s *Sexpr) String() string {
+	var sb strings.Builder
+	s.string_(&sb, 0)
+	return sb.String()
+}
+
+func (s *Sexpr) string_(acc *strings.Builder, level int) {
 	wasSexpr := false
 	indent := strings.Repeat("\t", level)
+	params := s.params
 	acc.WriteString(indent)
 	acc.WriteString("(")
-	acc.WriteString(sp.Name)
-	if len(sp.Params) == 0 {
+	acc.WriteString(s.Name())
+	if len(s.Params()) == 0 {
 		acc.WriteString(")\n")
 	} else {
-		for _, param := range sp.Params {
-			if sparam, ok := param.(*Sexpr); ok {
+		for _, param := range params {
+			paramv := param.Value()
+			switch spv := paramv.(type) {
+			case *Sexpr:
 				acc.WriteString("\n")
-				sparam.string_(acc, level+1)
+				spv.string_(acc, level+1)
 				wasSexpr = true
-			} else {
+			case *SexprString:
 				acc.WriteString(" ")
-				acc.WriteString(param.String())
+				acc.WriteString(spv.String())
 				wasSexpr = false
 			}
 		}
@@ -51,5 +79,29 @@ func (sp *Sexpr) string_(acc *strings.Builder, level int) {
 		} else {
 			acc.WriteString(")")
 		}
+	}
+}
+
+func (s *Sexpr) GetChildByName(name string, maxDepth int) *Sexpr {
+	queue := NewSexprQueue()
+	queue.Enqueue(s)
+	depth := 1
+
+	for {
+		sexpr := queue.Dequeue()
+		if sexpr == nil {
+			return nil
+		}
+		for _, param := range sexpr.params {
+			if sexpr, ok := param.Value().(*Sexpr); ok {
+				if sexpr.name == name {
+					return sexpr
+				}
+				if maxDepth == -1 || depth < maxDepth {
+					queue.Enqueue(sexpr)
+				}
+			}
+		}
+		depth += 1
 	}
 }

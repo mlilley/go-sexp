@@ -1,3 +1,3 @@
-module github.com/mlilley/go-sexp
+module github.com/mlilley/go-sexpr
 
 go 1.21.6

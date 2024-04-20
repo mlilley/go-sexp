@@ -1,9 +1,19 @@
-package main
+package sexpr
 
 import (
 	"bufio"
 	"fmt"
 )
+
+type tmpSexpr struct {
+	parent *tmpSexpr
+	name   string
+	params *[]*SexprParam
+	line   int
+	col    int
+}
+
+// Sexpr is immutable, but we need it to be mutable here... :(
 
 func Parse(input *bufio.Reader) (*Sexpr, error) {
 	lexer := NewLexer(input)
@@ -21,22 +31,18 @@ func Parse(input *bufio.Reader) (*Sexpr, error) {
 			// ignore
 
 		} else if token.Kind == TokenOpen {
-			s := &Sexpr{
-				Line:   token.Line,
-				Column: token.Column,
-				Parent: sexpr,
-			}
+			tmpsexpr := NewSexpr("", []*SexprParam{}, sexpr, token.Line, token.Column)
 			if depth == 0 {
 				if root != nil {
 					return nil, fmt.Errorf("unexpected open at Line %d, Column %d", token.Line, token.Column)
 				}
-				root = s
+				root = tmpsexpr
 			}
 			if depth > 0 && !hasName {
 				return nil, fmt.Errorf("unexpected open at Line %d, Column %d", token.Line, token.Column)
 			}
 			hasName = false
-			sexpr = s
+			sexpr = tmpsexpr
 			depth++
 
 		} else if token.Kind == TokenClose {
@@ -47,9 +53,13 @@ func Parse(input *bufio.Reader) (*Sexpr, error) {
 				return nil, fmt.Errorf("sexpression without name at Line %d, Column %d", token.Line, token.Column)
 			}
 			if depth > 1 {
-				sexpr.Parent.AddParam(sexpr)
+				sp, err := NewSexprParam(sexpr)
+				if err != nil {
+					return nil, err
+				}
+				sexpr.Parent().params = append(sexpr.Parent().params, sp)
 			}
-			sexpr = sexpr.Parent
+			sexpr = sexpr.Parent()
 			depth--
 
 		} else if token.Kind == TokenString {
@@ -57,9 +67,14 @@ func Parse(input *bufio.Reader) (*Sexpr, error) {
 				return nil, fmt.Errorf("unexpected string at Line %d, Column %d: '%s'", token.Line, token.Column, token.Content)
 			}
 			if hasName {
-				sexpr.AddParam(NewSexprStringParamQuoted(token.Content, false, token.Line, token.Column))
+				ss := NewSexprStringQuoted(token.Content, false, sexpr, token.Line, token.Column)
+				sp, err := NewSexprParam(ss)
+				if err != nil {
+					return nil, err
+				}
+				sexpr.params = append(sexpr.Params(), sp)
 			} else {
-				sexpr.Name = token.Content
+				sexpr.name = token.Content
 				hasName = true
 			}
 
@@ -68,9 +83,14 @@ func Parse(input *bufio.Reader) (*Sexpr, error) {
 				return nil, fmt.Errorf("unexpected string at Line %d, Column %d: '%s'", token.Line, token.Column, token.Content)
 			}
 			if hasName {
-				sexpr.AddParam(NewSexprStringParamQuoted(token.Content[1:len(token.Content)-1], true, token.Line, token.Column))
+				ss := NewSexprStringQuoted(token.Content[1:len(token.Content)-1], true, sexpr, token.Line, token.Column)
+				sp, err := NewSexprParam(ss)
+				if err != nil {
+					return nil, err
+				}
+				sexpr.params = append(sexpr.Params(), sp)
 			} else {
-				sexpr.Name = token.Content
+				sexpr.name = token.Content[1 : len(token.Content)-1]
 				hasName = true
 			}
 

@@ -1,4 +1,4 @@
-package main
+package sexpr
 
 import (
 	"bufio"
@@ -7,26 +7,27 @@ import (
 )
 
 func TestParseBasic(t *testing.T) {
-	result, err := Parse(bufio.NewReader(strings.NewReader(`(a b "c c" #$% 1 2.3)`)))
+	root, err := Parse(bufio.NewReader(strings.NewReader(`(a b "c c" #$% 1 2.3)`)))
 
 	assertNoError(t, err)
-	assertSexpr(t, result, "a", 5)
-	assertStringParam(t, result.Params[0], "b", false)
-	assertStringParam(t, result.Params[1], "c c", true)
-	assertStringParam(t, result.Params[2], "#$%", false)
-	assertStringParam(t, result.Params[3], "1", false)
-	assertStringParam(t, result.Params[4], "2.3", false)
+	assertSexpr(t, root, "a", 5)
+	assertStringParam(t, root.Params()[0], "b", false)
+	assertStringParam(t, root.Params()[1], "c c", true)
+	assertStringParam(t, root.Params()[2], "#$%", false)
+	assertStringParam(t, root.Params()[3], "1", false)
+	assertStringParam(t, root.Params()[4], "2.3", false)
 }
 
 func TestParseNested(t *testing.T) {
-	result, err := Parse(bufio.NewReader(strings.NewReader(`(a b (c d))`)))
+	root, err := Parse(bufio.NewReader(strings.NewReader(`(a b (c d))`)))
 
 	assertNoError(t, err)
-	assertSexpr(t, result, "a", 2)
-	assertStringParam(t, result.Params[0], "b", false)
-	assertSexpr(t, result.Params[1], "c", 1)
-	nested, _ := result.Params[1].(*Sexpr)
-	assertStringParam(t, nested.Params[0], "d", false)
+	assertSexpr(t, root, "a", 2)
+	assertStringParam(t, root.Params()[0], "b", false)
+	assertSexprParam(t, root.Params()[1], "c", 1)
+
+	nested, _ := root.Params()[1].Value().(*Sexpr)
+	assertStringParam(t, nested.Params()[0], "d", false)
 }
 
 func TestParseEmpty(t *testing.T) {
@@ -53,15 +54,15 @@ func TestParseSexprAsName(t *testing.T) {
 }
 
 func TestParseSexprNoParams(t *testing.T) {
-	result, err := Parse(bufio.NewReader(strings.NewReader("(a)")))
+	root, err := Parse(bufio.NewReader(strings.NewReader("(a)")))
 	assertNoError(t, err)
-	assertTrue(t, result != nil)
-	assertEqualsStr(t, result.Name, "a")
+	assertTrue(t, root != nil)
+	assertEqualsStr(t, root.Name(), "a")
 
-	result, err = Parse(bufio.NewReader(strings.NewReader("   ( b )  ")))
+	root, err = Parse(bufio.NewReader(strings.NewReader("   ( b )  ")))
 	assertNoError(t, err)
-	assertTrue(t, result != nil)
-	assertEqualsStr(t, result.Name, "b")
+	assertTrue(t, root != nil)
+	assertEqualsStr(t, root.Name(), "b")
 }
 
 func TestParseNotNested(t *testing.T) {
@@ -70,37 +71,42 @@ func TestParseNotNested(t *testing.T) {
 }
 
 func TestSerialize(t *testing.T) {
-	result, err := Parse(bufio.NewReader(strings.NewReader(`(a b "c c" #$% 1 2.3)`)))
+	root, err := Parse(bufio.NewReader(strings.NewReader(`(a b "c c" #$% 1 2.3)`)))
 	assertNoError(t, err)
-	assertTrue(t, result != nil)
-	assertEqualsStr(t, result.String(), `(a b "c c" #$% 1 2.3)`)
+	assertTrue(t, root != nil)
+	assertEqualsStr(t, root.String(), `(a b "c c" #$% 1 2.3)`)
 
-	result, err = Parse(bufio.NewReader(strings.NewReader(`(a (b c) (d e))`)))
+	root, err = Parse(bufio.NewReader(strings.NewReader(`(a (b c) (d e))`)))
 	assertNoError(t, err)
-	assertTrue(t, result != nil)
-	assertEqualsStr(t, result.String(), "(a\n\t(b c)\n\t(d e)\n)")
+	assertTrue(t, root != nil)
+	assertEqualsStr(t, root.String(), "(a\n\t(b c)\n\t(d e)\n)")
 
-	result, err = Parse(bufio.NewReader(strings.NewReader(`(a (b (c d)))`)))
+	root, err = Parse(bufio.NewReader(strings.NewReader(`(a (b (c d)))`)))
 	assertNoError(t, err)
-	assertTrue(t, result != nil)
-	assertEqualsStr(t, result.String(), "(a\n\t(b\n\t\t(c d)\n\t)\n)")
+	assertTrue(t, root != nil)
+	assertEqualsStr(t, root.String(), "(a\n\t(b\n\t\t(c d)\n\t)\n)")
 }
 
 // ---
 
-func assertStringParam(t *testing.T, p SexprParam, v string, quoted bool) {
-	sp, ok := p.(*SexprStringParam)
-	assertTrue(t, ok)
-	assertEqualsStr(t, sp.Value, v)
-	assertEqualsBool(t, sp.Quoted, quoted)
+func assertSexpr(t *testing.T, s *Sexpr, name string, params int) {
+	assertTrue(t, s != nil)
+	assertEqualsStr(t, s.Name(), name)
+	assertEqualsInt(t, len(s.Params()), params)
 }
 
-func assertSexpr(t *testing.T, p SexprParam, name string, params int) {
-	assertTrue(t, p != nil)
-	sp, ok := p.(*Sexpr)
+func assertStringParam(t *testing.T, sp *SexprParam, v string, quoted bool) {
+	ss, ok := sp.Value().(*SexprString)
 	assertTrue(t, ok)
-	assertEqualsStr(t, sp.Name, name)
-	assertEqualsInt(t, len(sp.Params), params)
+	assertEqualsStr(t, ss.Value(), v)
+	assertEqualsBool(t, ss.Quoted(), quoted)
+}
+
+func assertSexprParam(t *testing.T, sp *SexprParam, name string, params int) {
+	s, ok := sp.Value().(*Sexpr)
+	assertTrue(t, ok)
+	assertEqualsStr(t, s.Name(), name)
+	assertEqualsInt(t, len(s.Params()), params)
 }
 
 func assertTrue(t *testing.T, actual bool) {
