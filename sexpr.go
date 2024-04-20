@@ -82,7 +82,7 @@ func (s *Sexpr) string_(acc *strings.Builder, level int) {
 	}
 }
 
-func (s *Sexpr) GetChildByName(name string, maxDepth int) *Sexpr {
+func (s *Sexpr) FindChildByName(name string, maxDepth int) *Sexpr {
 	queue := NewSexprQueue()
 	queue.Enqueue(s)
 	depth := 1
