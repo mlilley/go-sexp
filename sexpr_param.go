@@ -2,13 +2,6 @@ package sexpr
 
 import "errors"
 
-type SexprParamKind int
-
-const (
-	SexprParamKindString SexprParamKind = iota
-	SexprParamKindSexpr
-)
-
 type SexprParam struct {
 	kind  SexprParamKind
 	value interface{}

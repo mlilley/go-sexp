@@ -13,6 +13,8 @@ type Sexpr struct {
 	col  int
 }
 
+type FindPredicate func(sexpr *Sexpr, depth int) bool
+
 func NewSexpr(name string, params []*SexprParam, parent *Sexpr, line int, col int) *Sexpr {
 	return &Sexpr{
 		parent: parent,
@@ -82,15 +84,7 @@ func (s *Sexpr) string_(acc *strings.Builder, level int) {
 	}
 }
 
-func (s *Sexpr) FindDirectChildByName(name string) *Sexpr {
-	return s.FindChildByName(name, 1)
-}
-
-func (s *Sexpr) FindDirectChildrenByName(name string) []*Sexpr {
-	return s.FindChildrenByName(name, 1)
-}
-
-func (s *Sexpr) FindChildByName(name string, maxDepth int) *Sexpr {
+func (s *Sexpr) FindChild(fp FindPredicate, maxDepth int) *Sexpr {
 	queue := NewSexprQueue()
 	queue.Enqueue(s)
 	depth := 1
@@ -102,7 +96,7 @@ func (s *Sexpr) FindChildByName(name string, maxDepth int) *Sexpr {
 		}
 		for _, param := range sexpr.params {
 			if sexpr, ok := param.Value().(*Sexpr); ok {
-				if sexpr.name == name {
+				if found := fp(sexpr, depth); found {
 					return sexpr
 				}
 				if maxDepth == -1 || depth < maxDepth {
@@ -114,7 +108,7 @@ func (s *Sexpr) FindChildByName(name string, maxDepth int) *Sexpr {
 	}
 }
 
-func (s *Sexpr) FindChildrenByName(name string, maxDepth int) []*Sexpr {
+func (s *Sexpr) FindChildren(fp FindPredicate, maxDepth int) []*Sexpr {
 	children := []*Sexpr{}
 
 	queue := NewSexprQueue()
@@ -128,7 +122,7 @@ func (s *Sexpr) FindChildrenByName(name string, maxDepth int) []*Sexpr {
 		}
 		for _, param := range sexpr.params {
 			if sexpr, ok := param.Value().(*Sexpr); ok {
-				if sexpr.name == name {
+				if found := fp(sexpr, depth); found {
 					children = append(children, sexpr)
 				}
 				if maxDepth == -1 || depth < maxDepth {
@@ -138,4 +132,24 @@ func (s *Sexpr) FindChildrenByName(name string, maxDepth int) []*Sexpr {
 		}
 		depth += 1
 	}
+}
+
+func (s *Sexpr) FindChildByName(name string, maxDepth int) *Sexpr {
+	return s.FindChild(func(s *Sexpr, d int) bool {
+		return s.Name() == name
+	}, maxDepth)
+}
+
+func (s *Sexpr) FindChildrenByName(name string, maxDepth int) []*Sexpr {
+	return s.FindChildren(func(s *Sexpr, d int) bool {
+		return s.Name() == name
+	}, maxDepth)
+}
+
+func (s *Sexpr) FindDirectChildByName(name string) *Sexpr {
+	return s.FindChildByName(name, 1)
+}
+
+func (s *Sexpr) FindDirectChildrenByName(name string) []*Sexpr {
+	return s.FindChildrenByName(name, 1)
 }
