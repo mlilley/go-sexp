@@ -1,3 +1,0 @@
-(thing data "quoted data" 123 123.456
-    (nestedthing @#$% 
-        "(tricky quoted"       "more tricky quoted)"))
