@@ -82,6 +82,14 @@ func (s *Sexpr) string_(acc *strings.Builder, level int) {
 	}
 }
 
+func (s *Sexpr) FindDirectChildByName(name string) *Sexpr {
+	return s.FindChildByName(name, 1)
+}
+
+func (s *Sexpr) FindDirectChildrenByName(name string) []*Sexpr {
+	return s.FindChildrenByName(name, 1)
+}
+
 func (s *Sexpr) FindChildByName(name string, maxDepth int) *Sexpr {
 	queue := NewSexprQueue()
 	queue.Enqueue(s)
@@ -96,6 +104,32 @@ func (s *Sexpr) FindChildByName(name string, maxDepth int) *Sexpr {
 			if sexpr, ok := param.Value().(*Sexpr); ok {
 				if sexpr.name == name {
 					return sexpr
+				}
+				if maxDepth == -1 || depth < maxDepth {
+					queue.Enqueue(sexpr)
+				}
+			}
+		}
+		depth += 1
+	}
+}
+
+func (s *Sexpr) FindChildrenByName(name string, maxDepth int) []*Sexpr {
+	children := []*Sexpr{}
+
+	queue := NewSexprQueue()
+	queue.Enqueue(s)
+	depth := 1
+
+	for {
+		sexpr := queue.Dequeue()
+		if sexpr == nil {
+			return children
+		}
+		for _, param := range sexpr.params {
+			if sexpr, ok := param.Value().(*Sexpr); ok {
+				if sexpr.name == name {
+					children = append(children, sexpr)
 				}
 				if maxDepth == -1 || depth < maxDepth {
 					queue.Enqueue(sexpr)
