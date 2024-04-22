@@ -1,6 +1,9 @@
 package sexpr
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+)
 
 type SexprParam struct {
 	kind  SexprParamKind
@@ -30,4 +33,44 @@ func (sp *SexprParam) Kind() SexprParamKind {
 
 func (sp *SexprParam) String() string {
 	return sp.String()
+}
+
+func (sp *SexprParam) AsSexpr() (*Sexpr, error) {
+	ss, ok := sp.value.(*Sexpr)
+	if !ok {
+		return nil, errors.New("value is not a sexpr")
+	}
+	return ss, nil
+}
+
+func (sp *SexprParam) AsString() (string, error) {
+	ss, ok := sp.value.(*SexprString)
+	if !ok {
+		return "", errors.New("value is not a string")
+	}
+	return ss.Value(), nil
+}
+
+func (sp *SexprParam) AsInt() (int64, error) {
+	ss, ok := sp.value.(*SexprString)
+	if !ok {
+		return 0, errors.New("value is not an int")
+	}
+	i, err := strconv.ParseInt(ss.Value(), 10, 64)
+	if err != nil {
+		return 0, errors.New("value is not an int")
+	}
+	return i, nil
+}
+
+func (sp *SexprParam) AsFloat() (float64, error) {
+	ss, ok := sp.value.(*SexprString)
+	if !ok {
+		return 0, errors.New("value is not a float")
+	}
+	f, err := strconv.ParseFloat(ss.Value(), 64)
+	if err != nil {
+		return 0, errors.New("value is not a float")
+	}
+	return f, nil
 }
