@@ -32,7 +32,14 @@ func (sp *SexprParam) Kind() SexprParamKind {
 }
 
 func (sp *SexprParam) String() string {
-	return sp.String()
+	switch sp.kind {
+	case SexprParamKindString:
+		return sp.value.(*SexprString).String()
+	case SexprParamKindSexpr:
+		return sp.value.(*Sexpr).String()
+	default:
+		return ""
+	}
 }
 
 func (sp *SexprParam) AsSexpr() (*Sexpr, error) {

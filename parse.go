@@ -13,8 +13,6 @@ type tmpSexpr struct {
 	col    int
 }
 
-// Sexpr is immutable, but we need it to be mutable here... :(
-
 func Parse(input *bufio.Reader) (*Sexpr, error) {
 	lexer := NewLexer(input)
 	depth := 0

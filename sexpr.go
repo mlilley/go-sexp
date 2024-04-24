@@ -1,6 +1,7 @@
 package sexpr
 
 import (
+	"errors"
 	"strings"
 )
 
@@ -43,6 +44,26 @@ func (s *Sexpr) Line() int {
 
 func (s *Sexpr) Col() int {
 	return s.col
+}
+
+func (s *Sexpr) SetParam(i int, param *SexprParam) error {
+	if i < 0 || i >= len(s.params) {
+		return errors.New("index out of range")
+	} else {
+		s.params[i] = param
+		return nil
+	}
+}
+
+func (s *Sexpr) SetStringParam(i int, v string) error {
+	if i < 0 || i >= len(s.params) {
+		return errors.New("index out of range")
+	}
+	param, err := NewSexprParam(NewSexprString(v, s, s.line, s.col))
+	if err != nil {
+		return err
+	}
+	return s.SetParam(i, param)
 }
 
 func (s *Sexpr) String() string {

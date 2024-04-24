@@ -49,6 +49,11 @@ func (ss *SexprString) Quoted() bool {
 	return ss.quoted
 }
 
+func (ss *SexprString) Set(v string) {
+	ss.value = v
+	ss.quoted = shouldQuote(v)
+}
+
 func (ss *SexprString) String() string {
 	if ss.quoted {
 		return `"` + ss.value + `"`
