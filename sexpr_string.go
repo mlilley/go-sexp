@@ -3,32 +3,68 @@ package sexpr
 import "unicode"
 
 type SexprString struct {
-	parent *Sexpr
-
 	value  string
 	quoted bool
 
-	line int
-	col  int
+	parent *Sexpr
+	line   int
+	col    int
 }
 
-func NewSexprString(v string, parent *Sexpr, line int, col int) *SexprString {
+func NewSexprString(v string) *SexprString {
 	return &SexprString{
 		value:  v,
 		quoted: shouldQuote(v),
-		parent: parent,
-		line:   line,
-		col:    col,
 	}
 }
 
-func NewSexprStringQuoted(v string, quoted bool, parent *Sexpr, line int, col int) *SexprString {
+func NewSexprStringQuoted(v string, quoted bool) *SexprString {
 	return &SexprString{
 		value:  v,
 		quoted: quoted,
-		parent: parent,
-		line:   line,
-		col:    col,
+	}
+}
+
+func (ss *SexprString) Value() string {
+	return ss.value
+}
+
+func (ss *SexprString) SetValue(v string) {
+	ss.value = v
+	ss.quoted = shouldQuote(v)
+}
+
+func (ss *SexprString) SetValueQuoted(v string, quoted bool) {
+	ss.value = v
+	ss.quoted = quoted
+}
+
+func (ss *SexprString) Quoted() bool {
+	return ss.quoted
+}
+
+func (ss *SexprString) Parent() *Sexpr {
+	return ss.parent
+}
+
+func (ss *SexprString) SetParent(parent *Sexpr) {
+	ss.parent = parent
+}
+
+func (ss *SexprString) Location() (int, int) {
+	return ss.line, ss.col
+}
+
+func (ss *SexprString) SetLocation(line int, col int) {
+	ss.line = line
+	ss.col = col
+}
+
+func (ss *SexprString) String() string {
+	if ss.quoted {
+		return `"` + ss.value + `"`
+	} else {
+		return ss.value
 	}
 }
 
@@ -39,25 +75,4 @@ func shouldQuote(v string) bool {
 		}
 	}
 	return false
-}
-
-func (ss *SexprString) Value() string {
-	return ss.value
-}
-
-func (ss *SexprString) Quoted() bool {
-	return ss.quoted
-}
-
-func (ss *SexprString) Set(v string) {
-	ss.value = v
-	ss.quoted = shouldQuote(v)
-}
-
-func (ss *SexprString) String() string {
-	if ss.quoted {
-		return `"` + ss.value + `"`
-	} else {
-		return ss.value
-	}
 }

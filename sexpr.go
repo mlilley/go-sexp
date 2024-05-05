@@ -6,64 +6,99 @@ import (
 )
 
 type Sexpr struct {
-	parent *Sexpr
 	name   string
 	params []*SexprParam
 
-	line int
-	col  int
+	parent *Sexpr
+	line   int
+	col    int
 }
 
 type FindPredicate func(sexpr *Sexpr, depth int) bool
 
-func NewSexpr(name string, params []*SexprParam, parent *Sexpr, line int, col int) *Sexpr {
-	return &Sexpr{
-		parent: parent,
-		name:   name,
-		params: params,
-		line:   line,
-		col:    col,
-	}
+func NewSexpr(name string) *Sexpr {
+	return &Sexpr{name: name}
 }
 
 func (s *Sexpr) Name() string {
 	return s.name
 }
 
+func (s *Sexpr) SetName(name string) {
+	s.name = name
+}
+
 func (s *Sexpr) Params() []*SexprParam {
 	return s.params
+}
+
+func (s *Sexpr) AddParam(idx int, param *SexprParam) error {
+	if idx < 0 || idx > len(s.params) {
+		return errors.New("index out of range")
+	}
+	if idx == len(s.params) {
+		s.params = append(s.params, param)
+	} else {
+		s.params = append(s.params[:idx+1], s.params[idx:]...)
+		s.params[idx] = param
+	}
+	return nil
+}
+
+func (s *Sexpr) SetParam(idx int, param *SexprParam) error {
+	if idx < 0 || idx >= len(s.params) {
+		return errors.New("index out of range")
+	}
+	s.params[idx] = param
+	param.SetParent(s)
+	return nil
+}
+
+func (s *Sexpr) SetParamSexpr(idx int, sexpr *Sexpr) error {
+	if idx < 0 || idx >= len(s.params) {
+		return errors.New("index out of range")
+	}
+	param, err := NewSexprParam(sexpr)
+	if err != nil {
+		return err
+	}
+	return s.SetParam(idx, param)
+}
+
+func (s *Sexpr) SetParamString(idx int, sexprStr *SexprString) error {
+	if idx < 0 || idx >= len(s.params) {
+		return errors.New("index out of range")
+	}
+	param, err := NewSexprParam(sexprStr)
+	if err != nil {
+		return err
+	}
+	return s.SetParam(idx, param)
+}
+
+func (s *Sexpr) RemoveParam(idx int, param *SexprParam) error {
+	if idx < 0 || idx >= len(s.params) {
+		return errors.New("index out of range")
+	}
+	s.params = append(s.params[:idx], s.params[idx+1:]...)
+	return nil
 }
 
 func (s *Sexpr) Parent() *Sexpr {
 	return s.parent
 }
 
-func (s *Sexpr) Line() int {
-	return s.line
+func (s *Sexpr) SetParent(parent *Sexpr) {
+	s.parent = parent
 }
 
-func (s *Sexpr) Col() int {
-	return s.col
+func (s *Sexpr) Location() (int, int) {
+	return s.line, s.col
 }
 
-func (s *Sexpr) SetParam(i int, param *SexprParam) error {
-	if i < 0 || i >= len(s.params) {
-		return errors.New("index out of range")
-	} else {
-		s.params[i] = param
-		return nil
-	}
-}
-
-func (s *Sexpr) SetStringParam(i int, v string) error {
-	if i < 0 || i >= len(s.params) {
-		return errors.New("index out of range")
-	}
-	param, err := NewSexprParam(NewSexprString(v, s, s.line, s.col))
-	if err != nil {
-		return err
-	}
-	return s.SetParam(i, param)
+func (s *Sexpr) SetLocation(line int, col int) {
+	s.line = line
+	s.col = col
 }
 
 func (s *Sexpr) String() string {

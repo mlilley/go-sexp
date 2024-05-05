@@ -10,7 +10,7 @@ type SexprParam struct {
 	value interface{}
 }
 
-func NewSexprParam(v interface{}) (*SexprParam, error) {
+func NewSexprParam(v any) (*SexprParam, error) {
 	var sp SexprParam
 	switch v.(type) {
 	case *SexprString:
@@ -23,12 +23,45 @@ func NewSexprParam(v interface{}) (*SexprParam, error) {
 	return &sp, nil
 }
 
+func (sp *SexprParam) Kind() SexprParamKind {
+	return sp.kind
+}
+
 func (sp *SexprParam) Value() any {
 	return sp.value
 }
 
-func (sp *SexprParam) Kind() SexprParamKind {
-	return sp.kind
+func (sp *SexprParam) SetValue(v any) error {
+	switch v.(type) {
+	case *SexprString:
+		sp.value = v
+		sp.kind = SexprParamKindString
+	case *Sexpr:
+		sp.value = v
+		sp.kind = SexprParamKindSexpr
+	default:
+		return errors.New("value must be string or sexpr")
+	}
+	return nil
+}
+
+func (sp *SexprParam) Parent() *Sexpr {
+	switch sp.kind {
+	case SexprParamKindString:
+		return sp.value.(*SexprString).Parent()
+	case SexprParamKindSexpr:
+		return sp.value.(*Sexpr).Parent()
+	}
+	return nil
+}
+
+func (sp *SexprParam) SetParent(parent *Sexpr) {
+	switch sp.kind {
+	case SexprParamKindString:
+		sp.value.(*SexprString).SetParent(parent)
+	case SexprParamKindSexpr:
+		sp.value.(*Sexpr).SetParent(parent)
+	}
 }
 
 func (sp *SexprParam) String() string {

@@ -1,43 +1,34 @@
 package sexpr
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestQueue(t *testing.T) {
 	q := SexprQueue{}
 
-	q.Enqueue(NewSexpr("One", nil, nil, 0, 0))
-	q.Enqueue(NewSexpr("Two", nil, nil, 0, 0))
-	if q.Len() != 2 {
-		t.Fail()
-	}
+	s1 := NewSexpr("One")
+	s2 := NewSexpr("Two")
+
+	q.Enqueue(s1)
+	q.Enqueue(s2)
+
+	require.Equal(t, q.Len(), 2)
 
 	one := q.Dequeue()
 	two := q.Dequeue()
 
-	if q.Len() != 0 {
-		t.Fail()
-	}
-	if one.Name() != "One" {
-		t.Fail()
-	}
-	if two.Name() != "Two" {
-		t.Fail()
-	}
+	require.Equal(t, q.Len(), 0)
+	require.Equal(t, "One", one.Name())
+	require.Equal(t, "Two", two.Name())
 }
 
 func TestDequeueEmpty(t *testing.T) {
 	q := SexprQueue{}
 
-	if q.Len() != 0 {
-		t.Fail()
-	}
-
-	s := q.Dequeue()
-	if s != nil {
-		t.Fail()
-	}
-
-	if q.Len() != 0 {
-		t.Fail()
-	}
+	require.Equal(t, q.Len(), 0)
+	require.Nil(t, q.Dequeue())
+	require.Equal(t, q.Len(), 0)
 }

@@ -15,12 +15,10 @@ type tmpSexpr struct {
 
 func Parse(input *bufio.Reader) (*Sexpr, error) {
 	lexer := NewLexer(input)
-	depth := 0
 
 	var root *Sexpr = nil
 	var sexpr *Sexpr
 	var token Token
-	var hasName bool
 
 	for {
 		lexer.NextToken(&token)
@@ -29,71 +27,71 @@ func Parse(input *bufio.Reader) (*Sexpr, error) {
 			// ignore
 
 		} else if token.Kind == TokenOpen {
-			tmpsexpr := NewSexpr("", []*SexprParam{}, sexpr, token.Line, token.Column)
-			if depth == 0 {
-				if root != nil {
-					return nil, fmt.Errorf("unexpected open at Line %d, Column %d", token.Line, token.Column)
-				}
-				root = tmpsexpr
-			}
-			if depth > 0 && !hasName {
+			if sexpr != nil && sexpr.Name() == "" {
 				return nil, fmt.Errorf("unexpected open at Line %d, Column %d", token.Line, token.Column)
 			}
-			hasName = false
-			sexpr = tmpsexpr
-			depth++
-
-		} else if token.Kind == TokenClose {
-			if depth == 0 {
-				return nil, fmt.Errorf("unexpected close at Line %d, Column %d", token.Line, token.Column)
+			if sexpr == nil && root != nil {
+				return nil, fmt.Errorf("unexpected open at Line %d, Column %d", token.Line, token.Column)
 			}
-			if !hasName {
-				return nil, fmt.Errorf("sexpression without name at Line %d, Column %d", token.Line, token.Column)
-			}
-			if depth > 1 {
+			p := sexpr
+			sexpr = NewSexpr("")
+			sexpr.SetLocation(token.Line, token.Column)
+			sexpr.SetParent(p)
+			if p != nil {
 				sp, err := NewSexprParam(sexpr)
 				if err != nil {
 					return nil, err
 				}
-				sexpr.Parent().params = append(sexpr.Parent().params, sp)
+				p.AddParam(len(p.Params()), sp)
+			}
+			if root == nil {
+				root = sexpr
+			}
+
+		} else if token.Kind == TokenClose {
+			if sexpr == nil {
+				return nil, fmt.Errorf("unexpected close at Line %d, Column %d", token.Line, token.Column)
+			}
+			if sexpr.Name() == "" {
+				return nil, fmt.Errorf("unexpected close at Line %d, Column %d", token.Line, token.Column)
 			}
 			sexpr = sexpr.Parent()
-			depth--
 
 		} else if token.Kind == TokenString {
-			if depth == 0 {
+			if sexpr == nil {
 				return nil, fmt.Errorf("unexpected string at Line %d, Column %d: '%s'", token.Line, token.Column, token.Content)
 			}
-			if hasName {
-				ss := NewSexprStringQuoted(token.Content, false, sexpr, token.Line, token.Column)
-				sp, err := NewSexprParam(ss)
+			if sexpr.Name() == "" {
+				sexpr.SetName(token.Content)
+			} else {
+				str := NewSexprStringQuoted(token.Content, false)
+				str.SetLocation(token.Line, token.Column)
+				str.SetParent(sexpr)
+				param, err := NewSexprParam(str)
 				if err != nil {
 					return nil, err
 				}
-				sexpr.params = append(sexpr.Params(), sp)
-			} else {
-				sexpr.name = token.Content
-				hasName = true
+				sexpr.AddParam(len(sexpr.Params()), param)
 			}
 
 		} else if token.Kind == TokenQuotedString {
-			if depth == 0 {
-				return nil, fmt.Errorf("unexpected string at Line %d, Column %d: '%s'", token.Line, token.Column, token.Content)
+			if sexpr == nil {
+				return nil, fmt.Errorf("unexpected quoted string at Line %d, Column %d: '%s'", token.Line, token.Column, token.Content)
 			}
-			if hasName {
-				ss := NewSexprStringQuoted(token.Content[1:len(token.Content)-1], true, sexpr, token.Line, token.Column)
-				sp, err := NewSexprParam(ss)
-				if err != nil {
-					return nil, err
-				}
-				sexpr.params = append(sexpr.Params(), sp)
-			} else {
-				sexpr.name = token.Content[1 : len(token.Content)-1]
-				hasName = true
+			if sexpr.Name() == "" {
+				return nil, fmt.Errorf("unexpected quoted string at Line %d, Column %d: '%s'", token.Line, token.Column, token.Content)
 			}
+			str := NewSexprStringQuoted(token.Content[1:len(token.Content)-1], true)
+			str.SetLocation(token.Line, token.Column)
+			str.SetParent(sexpr)
+			param, err := NewSexprParam(str)
+			if err != nil {
+				return nil, err
+			}
+			sexpr.AddParam(len(sexpr.Params()), param)
 
 		} else if token.Kind == TokenEOF {
-			if depth != 0 {
+			if sexpr != nil {
 				return nil, fmt.Errorf("unexpected EOF at Line %d, Column %d", token.Line, token.Column)
 			}
 			return root, nil
