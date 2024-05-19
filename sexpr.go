@@ -192,13 +192,13 @@ func (s *Sexpr) FindChildren(fp FindPredicate, maxDepth int) []*Sexpr {
 
 func (s *Sexpr) FindChildByName(name string, maxDepth int) *Sexpr {
 	return s.FindChild(func(s *Sexpr, d int) bool {
-		return s.Name() == name
+		return strings.EqualFold(s.Name(), name)
 	}, maxDepth)
 }
 
 func (s *Sexpr) FindChildrenByName(name string, maxDepth int) []*Sexpr {
 	return s.FindChildren(func(s *Sexpr, d int) bool {
-		return s.Name() == name
+		return strings.EqualFold(s.Name(), name)
 	}, maxDepth)
 }
 

@@ -10,7 +10,7 @@ import (
 
 func GetByNameFindPredicate(name string) FindPredicate {
 	return func(sexpr *Sexpr, depth int) bool {
-		if sexpr.Name() == name {
+		if strings.EqualFold(sexpr.Name(), name) {
 			return true
 		} else {
 			return false
